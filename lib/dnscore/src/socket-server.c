@@ -1206,7 +1206,7 @@ socket_server_init(int argc, char **argv)
 
     socket_server_parent_uid = getuid();
     
-    pid_t pid = fork_ex();
+    pid_t pid = getpid();//fork_ex();
     
     if(pid < 0)
     {
@@ -1221,66 +1221,66 @@ socket_server_init(int argc, char **argv)
         return ret;   // could not fork
     }
         
-    if(pid == 0)
-    {
-        FILE *f;
+    //if(pid == 0)
+    //{
+        //FILE *f;
 
         //MODULE_MSG_HANDLE = LOGGER_HANDLE_SINK;
-        socket_server_pipe[1] = -1;
+        //socket_server_pipe[1] = -1;
         
-        f = freopen("/dev/null", "r", stdin);
+        //f = freopen("/dev/null", "r", stdin);
 
-        if(f == NULL)
-        {
-            exit(EXIT_FAILURE);
-        }
+        //if(f == NULL)
+        //{
+        //    exit(EXIT_FAILURE);
+        //}
 
 #if !DEBUG
-        f = freopen("/dev/null", "a", stdout);
+        //f = freopen("/dev/null", "a", stdout);
 
-        if(f == NULL)
-        {
-            exit(EXIT_FAILURE);
-        }
+        //if(f == NULL)
+        //{
+        //    exit(EXIT_FAILURE);
+        //}
 
-        f = freopen("/dev/null", "a", stderr);
+        //f = freopen("/dev/null", "a", stderr);
 
-        if(f == NULL)
-        {
-            exit(EXIT_FAILURE);
-        }
+        //if(f == NULL)
+        //{
+        //    exit(EXIT_FAILURE);
+        //}
 #else
-        f = freopen("/tmp/yadifa-socket-server.out", "a", stdout);
+        //f = freopen("/tmp/yadifa-socket-server.out", "a", stdout);
 
-        if(f == NULL)
-        {
-            if((/*f = */freopen("/dev/null", "a", stdout)) == NULL)
-            {
-                exit(EXIT_FAILURE);
-            }
-        }
+        //if(f == NULL)
+        //{
+        //    if((/*f = */freopen("/dev/null", "a", stdout)) == NULL)
+        //    {
+        //        exit(EXIT_FAILURE);
+        //    }
+        //}
 
-        f = freopen("/tmp/yadifa-socket-server.err", "a", stderr);
+        //f = freopen("/tmp/yadifa-socket-server.err", "a", stderr);
 
-        if(f == NULL)
-        {
-            if((/*f = */freopen("/dev/null", "a", stderr)) == NULL)
-            {
-                exit(EXIT_FAILURE);
-            }
-        }
+        //if(f == NULL)
+        //{
+        //    if((/*f = */freopen("/dev/null", "a", stderr)) == NULL)
+        //    {
+        //        exit(EXIT_FAILURE);
+        //    }
+        //}
 
 #if __FreeBSD__
-        fprintf(stdout, "FreeBSD: stdout reopened (%i)\n", getpid_ex());
-        fprintf(stderr, "FreeBSD: stderr reopened (%i)\n", getpid_ex());
-        fflush(NULL);
+        //fprintf(stdout, "FreeBSD: stdout reopened (%i)\n", getpid_ex());
+        //fprintf(stderr, "FreeBSD: stderr reopened (%i)\n", getpid_ex());
+        //fflush(NULL);
 #endif
 
 #endif
 
-        socket_server_close_fd(&socket_server_pipe[1]);
-        socket_server_close_fd(&socket_server_sock[0]);
-        socket_server_close_fd(&socket_server_wire[0]);
+        //socket_server_close_fd(&socket_server_pipe[1]);
+        //socket_server_close_fd(&socket_server_sock[0]);
+        //socket_server_close_fd(&socket_server_wire[0]);
         
         signal(SIGPIPE, SIG_DFL);
 
@@ -1303,21 +1303,22 @@ socket_server_init(int argc, char **argv)
             }
         }
 
-        socket_server_server();
+        thread_t t;
+        thread_create(&t, socket_server_server, NULL);
         
         // NEVER REACHED
         
-        abort(); // should never be called
-    }
-    else
-    {
-        socket_server_close_fd(&socket_server_pipe[0]);
-        socket_server_close_fd(&socket_server_sock[1]);
-        socket_server_close_fd(&socket_server_wire[1]);
+        //abort(); // should never be called
+    //}
+    //else
+    //{
+        //socket_server_close_fd(&socket_server_pipe[0]);
+        //socket_server_close_fd(&socket_server_sock[1]);
+        //socket_server_close_fd(&socket_server_wire[1]);
 
         socket_server_pid = pid;
-        socket_server_pipe[0] = -1;
-    }
+        //socket_server_pipe[0] = -1;
+    //}
 #else // WIN32
 #endif
 

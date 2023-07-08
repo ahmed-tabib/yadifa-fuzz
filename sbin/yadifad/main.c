@@ -620,6 +620,64 @@ main_ignore_signals_while_starting_up()
     }
 }
 
+//AFL FUZZ LOOP IN SEPERATE THREAD
+void afl_fuzz_loop(/*const char* server_ip, int server_port*/)
+{
+    #ifdef __AFL_FUZZ_TESTCASE_LEN
+        const char* server_ip = "127.0.0.1";
+        int server_port = 53;
+
+        sleep(5);
+
+        int sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        if (sockfd < 0)
+        {
+            log_err("Could not create fuzz socket. Exiting Thread.");
+            return;
+        }    
+
+        struct sockaddr_in server_addr;
+
+        memset(&server_addr, 0, sizeof(server_addr));
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_port = htons(server_port);
+        inet_pton(AF_INET, server_ip, &(server_addr.sin_addr));
+
+        __AFL_INIT();
+
+        unsigned char* fuzz_buf = __AFL_FUZZ_TESTCASE_BUF;
+        unsigned char recv_buf[512];
+
+        while(__AFL_LOOP(10000))
+        {
+            //send the fuzz buffer
+            int fuzz_len = __AFL_FUZZ_TESTCASE_LEN;
+            
+            if (sendto(sockfd, fuzz_buf, fuzz_len, 0, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
+            {
+                log_err("Failed to send fuzz_buf, god help us.");
+                continue;
+            }
+
+            //clear the recv buffer
+            int bytes_recvd = 0;
+            int server_struct_length = 0;
+            do
+            {
+                bytes_recvd = recvfrom(sockfd, recv_buf, 512, 0, (struct sockaddr*)&server_addr, &server_struct_length);
+            } while (bytes_recvd > 0);
+        }
+
+        close(sockfd);
+        kill(getpid(), SIGKILL);
+    #endif
+    
+    log_err("FUZZ loop did not compile, check compiler used, FUZZ thread exiting.");
+    return;
+}
+
+
+
 int
 main(int argc, char *argv[])
 {
@@ -812,6 +870,7 @@ main(int argc, char *argv[])
 #if HAS_EVENT_DYNAMIC_MODULE
     dynamic_module_startup();
 #endif
+
     while(!dnscore_shuttingdown())
     {
         log_info("starting notify service");
@@ -835,7 +894,12 @@ main(int argc, char *argv[])
         {
             // start ctrl server on its address(es) that does not match the DNS server addresses
         }
-*/
+*/      
+        log_info("starting fuzz thread");
+
+        thread_t fuzz_thread;
+        thread_create(&fuzz_thread, afl_fuzz_loop, NULL);
+
         log_info("starting server");
 
         if(ISOK(ret = server_service_start_and_wait()))
